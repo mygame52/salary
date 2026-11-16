@@ -23,6 +23,18 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if ($appUrl = config('app.url')) {
+            \Illuminate\Support\Facades\URL::forceRootUrl($appUrl);
+            if (str_starts_with($appUrl, 'https://')) {
+                \Illuminate\Support\Facades\URL::forceScheme('https');
+            }
+        }
+
+        // Ensure pagination links always respect forced root URL (e.g. /salary subdirectory on IIS)
+        \Illuminate\Pagination\Paginator::currentPathResolver(function () {
+            return url(request()->path());
+        });
+
         View::composer('*', function ($view) {
             if (Auth::check() && Auth::user()->isAdmin()) {
                 $missingCitizenIdCount = User::where('role', '!=', 'admin')
