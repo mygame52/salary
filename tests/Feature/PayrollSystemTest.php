@@ -7,6 +7,7 @@ use App\Models\Payslip;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class PayrollSystemTest extends TestCase
