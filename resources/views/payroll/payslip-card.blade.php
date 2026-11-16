@@ -6,7 +6,13 @@
     $maxItems = max($incomeCount, $deductCount, 6);
 @endphp
 
-<div class="payslip-sheet bg-white text-black mx-auto px-8 py-7 border border-slate-300 shadow-sm" style="max-width: 900px; font-family: 'Sarabun', sans-serif; font-size: 14.5px; line-height: 1.55;">
+<div class="payslip-sheet relative bg-white text-black mx-auto px-8 py-7 border border-slate-300 shadow-sm overflow-hidden" style="max-width: 900px; font-family: 'Sarabun', sans-serif; font-size: 14.5px; line-height: 1.55;">
+    {{-- Watermark: ลายน้ำทแยงมุม สำนักงานส่งเสริมการเรียนรู้ประจำจังหวัดนครศรีธรรมราช --}}
+    <div class="payslip-watermark pointer-events-none select-none absolute inset-0 flex items-center justify-center overflow-hidden z-20" aria-hidden="true" style="-webkit-print-color-adjust: exact; print-color-adjust: exact;">
+        <div class="whitespace-nowrap text-center font-extrabold select-none" style="transform: rotate(-35deg); color: rgba(30, 41, 59, 0.08); font-size: 38px; font-family: 'Sarabun', sans-serif; letter-spacing: 0.04em;">
+            {{ $settings['agency_name'] ?? 'สำนักงานส่งเสริมการเรียนรู้ประจำจังหวัดนครศรีธรรมราช' }}
+        </div>
+    </div>
     {{-- Header: Logo centered at top with bottom edge above agency name (3cm) --}}
     <div class="flex justify-center mb-2">
         <img

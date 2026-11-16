@@ -55,4 +55,20 @@ class SettingController extends Controller
 
         return back()->with('success', 'บันทึกการตั้งค่าหัวสลิปและลายเซ็นเรียบร้อยแล้ว');
     }
+
+    public function backup()
+    {
+        abort_unless(Auth::user()->isAdmin(), 403);
+
+        $dbPath = database_path('database.sqlite');
+        if (!file_exists($dbPath)) {
+            return back()->with('error', 'ไม่พบไฟล์ฐานข้อมูลระบบ');
+        }
+
+        $filename = 'salary_db_backup_' . date('Y-m-d_His') . '.sqlite';
+
+        return response()->download($dbPath, $filename, [
+            'Content-Type' => 'application/x-sqlite3',
+        ]);
+    }
 }

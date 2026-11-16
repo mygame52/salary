@@ -639,7 +639,7 @@ class PayrollImportService
             'position_number' => null,
             'full_name' => $fullName,
             'account_name' => $accountName ?: $fullName,
-            'position' => 'นักวิชาการศึกษา',
+            'position' => 'ครูตำบล',
             'level_or_district' => $district,
             'bank_account' => $bankAccount,
             'income_items' => $incomeItems,

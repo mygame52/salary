@@ -67,7 +67,7 @@ class Payslip extends Model
         if ($this->user?->position) {
             return $this->user->position;
         }
-        return $this->employee_type === 'พนักงานราชการ' ? 'นักวิชาการศึกษา' : ($this->level_or_district ?: '-');
+        return $this->employee_type === 'พนักงานราชการ' ? 'ครูตำบล' : ($this->level_or_district ?: '-');
     }
 
     /**
