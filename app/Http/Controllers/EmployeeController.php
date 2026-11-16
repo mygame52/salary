@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\PayrollBatch;
 use App\Models\Payslip;
 use App\Models\User;
@@ -48,19 +49,19 @@ class EmployeeController extends Controller
         $recentUserIds = array_unique(array_merge($currentMonthUserIds, $prevMonthUserIds));
 
         // Missing over 1 month from current batch
-        $missingOver1MonthUserIds = User::where('role', '!=', 'admin')
+        $missingOver1MonthUserIds = User::whereNotIn('role', ['admin', 'finance'])
             ->whereNotIn('id', $recentUserIds)
             ->pluck('id')
             ->toArray();
 
         // Alert group: missing over 1 month AND status is still 'ปกติ'
-        $needsStatusReviewUserIds = User::where('role', '!=', 'admin')
+        $needsStatusReviewUserIds = User::whereNotIn('role', ['admin', 'finance'])
             ->whereIn('id', $missingOver1MonthUserIds)
             ->where('status', 'ปกติ')
             ->pluck('id')
             ->toArray();
 
-        $employees = User::where('role', '!=', 'admin')
+        $employees = User::whereNotIn('role', ['admin', 'finance'])
             ->withCount('payslips')
             ->when($type !== '', fn ($q) => $q->where('employee_type', $type))
             ->when($status !== '', fn ($q) => $q->where('status', $status))
@@ -116,7 +117,7 @@ class EmployeeController extends Controller
             }
         }
 
-        $districts = User::where('role', '!=', 'admin')
+        $districts = User::whereNotIn('role', ['admin', 'finance'])
             ->whereNotNull('level_or_district')
             ->where('level_or_district', '!=', '')
             ->select('level_or_district')
@@ -124,27 +125,27 @@ class EmployeeController extends Controller
             ->orderBy('level_or_district')
             ->pluck('level_or_district');
 
-        $missingCitizenCount = User::where('role', '!=', 'admin')
+        $missingCitizenCount = User::whereNotIn('role', ['admin', 'finance'])
             ->where(function ($q) {
                 $q->whereNull('citizen_id')->orWhere('citizen_id', '');
             })->count();
 
-        $missingBankCount = User::where('role', '!=', 'admin')
+        $missingBankCount = User::whereNotIn('role', ['admin', 'finance'])
             ->where(function ($q) {
                 $q->whereNull('bank_account')->orWhere('bank_account', '');
             })->count();
 
-        $civilServantCount = User::where('role', '!=', 'admin')->where('employee_type', 'ข้าราชการ')->count();
-        $permanentCount = User::where('role', '!=', 'admin')->where('employee_type', 'ลูกจ้างประจำ')->count();
-        $govEmployeeCount = User::where('role', '!=', 'admin')->where('employee_type', 'พนักงานราชการ')->count();
-        $totalEmployeesCount = User::where('role', '!=', 'admin')->count();
+        $civilServantCount = User::whereNotIn('role', ['admin', 'finance'])->where('employee_type', 'ข้าราชการ')->count();
+        $permanentCount = User::whereNotIn('role', ['admin', 'finance'])->where('employee_type', 'ลูกจ้างประจำ')->count();
+        $govEmployeeCount = User::whereNotIn('role', ['admin', 'finance'])->where('employee_type', 'พนักงานราชการ')->count();
+        $totalEmployeesCount = User::whereNotIn('role', ['admin', 'finance'])->count();
 
         // Status counts
-        $statusNormalCount = User::where('role', '!=', 'admin')->where('status', 'ปกติ')->count();
-        $statusTransferredCount = User::where('role', '!=', 'admin')->where('status', 'ย้าย')->count();
-        $statusRetiredCount = User::where('role', '!=', 'admin')->where('status', 'เกษียณ')->count();
-        $statusResignedCount = User::where('role', '!=', 'admin')->where('status', 'ลาออก')->count();
-        $statusDeceasedCount = User::where('role', '!=', 'admin')->where('status', 'เสียชีวิต')->count();
+        $statusNormalCount = User::whereNotIn('role', ['admin', 'finance'])->where('status', 'ปกติ')->count();
+        $statusTransferredCount = User::whereNotIn('role', ['admin', 'finance'])->where('status', 'ย้าย')->count();
+        $statusRetiredCount = User::whereNotIn('role', ['admin', 'finance'])->where('status', 'เกษียณ')->count();
+        $statusResignedCount = User::whereNotIn('role', ['admin', 'finance'])->where('status', 'ลาออก')->count();
+        $statusDeceasedCount = User::whereNotIn('role', ['admin', 'finance'])->where('status', 'เสียชีวิต')->count();
         $needsStatusReviewCount = count($needsStatusReviewUserIds);
 
         return view('employees.index', compact(
@@ -165,7 +166,7 @@ class EmployeeController extends Controller
             $q->orderByDesc('year_be')->orderByDesc('month');
         }]);
 
-        $districts = User::where('role', '!=', 'admin')
+        $districts = User::whereNotIn('role', ['admin', 'finance'])
             ->whereNotNull('level_or_district')
             ->where('level_or_district', '!=', '')
             ->select('level_or_district')
@@ -218,9 +219,22 @@ class EmployeeController extends Controller
 
         if (!empty($data['new_password'])) {
             $updates['password'] = Hash::make($data['new_password']);
+            $updates['visible_password'] = $data['new_password'];
+        } elseif ($cleanCitizenId && $employee->isDefaultPassword() && $employee->visible_password !== $cleanCitizenId) {
+            $updates['password'] = Hash::make($cleanCitizenId);
+            $updates['visible_password'] = $cleanCitizenId;
         }
 
         $employee->update($updates);
+
+        ActivityLog::record(
+            !empty($data['new_password']) ? 'password_reset' : 'user_update',
+            !empty($data['new_password'])
+                ? "แก้ไขข้อมูลและตั้งรหัสผ่านใหม่ให้ {$employee->name}"
+                : "แก้ไขข้อมูลทะเบียนบุคลากร {$employee->name}",
+            Auth::user(),
+            $employee
+        );
 
         // Sync updated citizen_id, position, bank_account, position_number to all payslips of this employee
         $employee->payslips()->update([
@@ -244,7 +258,7 @@ class EmployeeController extends Controller
         $updatedCount = 0;
 
         foreach ($items as $userId => $fields) {
-            $user = User::where('role', '!=', 'admin')->find($userId);
+            $user = User::whereNotIn('role', ['admin', 'finance'])->find($userId);
             if (!$user) {
                 continue;
             }
@@ -255,9 +269,14 @@ class EmployeeController extends Controller
             $employeeType = isset($fields['employee_type']) ? trim((string) $fields['employee_type']) : null;
             $status = isset($fields['status']) ? trim((string) $fields['status']) : null;
 
+            $wasDefaultPassword = $user->isDefaultPassword();
             $dirty = false;
             if ($citizenId !== ($user->citizen_id ?? '')) {
                 $user->citizen_id = $citizenId ?: null;
+                if ($citizenId && $wasDefaultPassword && $user->visible_password !== $citizenId) {
+                    $user->password = Hash::make($citizenId);
+                    $user->visible_password = $citizenId;
+                }
                 $dirty = true;
             }
             if ($position !== null && $position !== ($user->position ?? '')) {

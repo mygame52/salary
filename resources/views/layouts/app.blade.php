@@ -272,11 +272,38 @@
                             </div>
                         </div>
 
-                        {{-- Group 3: การตั้งค่าระบบ --}}
+                        {{-- Group 3: การตั้งค่าระบบ & ผู้ใช้งาน --}}
                         <div class="space-y-1.5">
                             <div class="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400/80">
-                                การตั้งค่าระบบ
+                                การตั้งค่าระบบ & ผู้ใช้งาน
                             </div>
+
+                            <a
+                                href="{{ route('users.index') }}"
+                                class="group flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-150 {{ request()->routeIs('users.*') ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-950/40' : 'text-slate-400 hover:text-white hover:bg-white/[0.06] font-medium' }}"
+                            >
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <svg class="w-5 h-5 shrink-0 transition-colors nav-icon {{ request()->routeIs('users.*') ? 'text-white' : 'text-slate-400 group-hover:text-purple-300' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                                    </svg>
+                                    <span class="truncate">จัดการผู้ใช้งาน & รหัสผ่าน</span>
+                                </div>
+                                @if(isset($systemNotifications['count_users_all']))
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-bold font-num shrink-0 {{ request()->routeIs('users.*') ? 'bg-white/20 text-white border border-white/30' : 'bg-slate-800 text-slate-300 border border-slate-700/60' }}">
+                                        {{ $systemNotifications['count_users_all'] }}
+                                    </span>
+                                @endif
+                            </a>
+
+                            <a
+                                href="{{ route('activity-logs.index') }}"
+                                class="group flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-150 {{ request()->routeIs('activity-logs.*') ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-950/40' : 'text-slate-400 hover:text-white hover:bg-white/[0.06] font-medium' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 transition-colors nav-icon {{ request()->routeIs('activity-logs.*') ? 'text-white' : 'text-slate-400 group-hover:text-purple-300' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                                </svg>
+                                <span>ประวัติการใช้งาน (Logs)</span>
+                            </a>
 
                             <a
                                 href="{{ route('settings.edit') }}"
@@ -288,6 +315,17 @@
                                 </svg>
                                 <span>ตั้งค่าหัวสลิป & ลายเซ็น</span>
                             </a>
+
+                            <button
+                                type="button"
+                                onclick="openPasswordModal()"
+                                class="w-full group flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-slate-400 hover:text-white hover:bg-white/[0.06] transition text-left"
+                            >
+                                <svg class="w-5 h-5 shrink-0 text-slate-400 group-hover:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                </svg>
+                                <span>เปลี่ยนรหัสผ่านของฉัน</span>
+                            </button>
                         </div>
                     @else
                         {{-- Regular Employee Menu --}}
@@ -333,7 +371,7 @@
                                 </div>
                                 <div class="text-[10px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
                                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                                    <span>{{ auth()->user()->isAdmin() ? 'จนท.การเงิน (Admin)' : (auth()->user()->employee_type ?: 'บุคลากร') }}</span>
+                                    <span>{{ auth()->user()->isAdmin() ? auth()->user()->role_label : (auth()->user()->employee_type ?: 'บุคลากร') }}</span>
                                 </div>
                             </div>
                         </div>
@@ -618,6 +656,86 @@
             </footer>
         </div>
     </div>
+
+    {{-- Global Change Password Modal (For Admin, Finance Officer, and Employee) --}}
+    <div
+        id="passwordModal"
+        class="no-print fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs hidden flex items-center justify-center p-4 transition-all duration-200"
+    >
+        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-7 space-y-5 border border-slate-200">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2.5 font-bold text-slate-800 text-base">
+                    <div class="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    </div>
+                    <span>เปลี่ยนรหัสผ่านเข้าสู่ระบบ ({{ auth()->user()->name }})</span>
+                </div>
+                <button type="button" onclick="closePasswordModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1 leading-none">&times;</button>
+            </div>
+
+            <form action="{{ route('profile.password') }}" method="POST" class="space-y-4">
+                @csrf
+                @method('PUT')
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">
+                        รหัสผ่านปัจจุบัน <span class="text-rose-500">*</span>
+                    </label>
+                    <input
+                        type="password"
+                        name="current_password"
+                        required
+                        placeholder="กรอกรหัสผ่านปัจจุบัน"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-purple-600 outline-none transition"
+                    >
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">
+                        รหัสผ่านใหม่ <span class="text-rose-500">*</span>
+                    </label>
+                    <input
+                        type="password"
+                        name="new_password"
+                        required
+                        minlength="4"
+                        placeholder="อย่างน้อย 4 ตัวอักษร"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-purple-600 outline-none transition"
+                    >
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">
+                        ยืนยันรหัสผ่านใหม่อีกครั้ง <span class="text-rose-500">*</span>
+                    </label>
+                    <input
+                        type="password"
+                        name="new_password_confirmation"
+                        required
+                        minlength="4"
+                        placeholder="กรอกรหัสผ่านใหม่อีกครั้งให้ตรงกัน"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-purple-600 outline-none transition"
+                    >
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button
+                        type="button"
+                        onclick="closePasswordModal()"
+                        class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition"
+                    >
+                        ยกเลิก
+                    </button>
+                    <button
+                        type="submit"
+                        class="px-5 py-2 rounded-xl text-xs font-bold bg-purple-900 hover:bg-purple-950 text-white shadow-xs transition"
+                    >
+                        บันทึกรหัสผ่านใหม่
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
     @else
         {{-- For unauthenticated users (Login Page) --}}
         <main class="min-h-screen flex items-center justify-center bg-gradient-to-tr from-slate-900 via-purple-950 to-slate-900 p-4">
@@ -626,6 +744,15 @@
     @endauth
 
     <script>
+        function openPasswordModal() {
+            const modal = document.getElementById('passwordModal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closePasswordModal() {
+            const modal = document.getElementById('passwordModal');
+            if (modal) modal.classList.add('hidden');
+        }
         function toggleSidebar() {
             const sidebar = document.getElementById('appSidebar');
             const backdrop = document.getElementById('mobileSidebarBackdrop');

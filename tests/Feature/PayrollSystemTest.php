@@ -648,4 +648,85 @@ class PayrollSystemTest extends TestCase
         $this->assertStringContainsString('ตุลาคม 2568', $csvResp->streamedContent());
         $this->assertStringContainsString('มกราคม 2569', $csvResp->streamedContent());
     }
+
+    public function test_user_management_finance_officer_role_and_activity_logs(): void
+    {
+        $admin = User::factory()->create([
+            'username' => 'admin_master',
+            'name' => 'แอดมินหลัก',
+            'role' => 'admin',
+            'password' => Hash::make('1234'),
+            'visible_password' => '1234',
+        ]);
+
+        $employee = User::factory()->create([
+            'name' => 'นางสาวสมหญิง ใจดี',
+            'role' => 'employee',
+            'employee_type' => 'พนักงานราชการ',
+            'bank_account' => '8019998887',
+            'password' => Hash::make('1234'),
+            'visible_password' => '1234',
+        ]);
+
+        // 1. Admin views User Management page
+        $indexResp = $this->actingAs($admin)->get(route('users.index'));
+        $indexResp->assertStatus(200);
+        $indexResp->assertSee('จัดการผู้ใช้งาน ดูรหัสผ่าน รีเซ็ต และกำหนดสิทธิ์');
+        $indexResp->assertSee('นางสาวสมหญิง ใจดี');
+
+        // 2. Admin creates a new Finance Officer (เจ้าหน้าที่การเงิน)
+        $storeResp = $this->actingAs($admin)->post(route('users.store'), [
+            'username' => 'finance01',
+            'name' => 'นางการเงิน ชำนาญงาน',
+            'role' => 'finance',
+            'password' => 'fin5678',
+            'position' => 'นักวิชาการเงินและบัญชี',
+        ]);
+        $storeResp->assertSessionHas('success');
+
+        $financeUser = User::where('username', 'finance01')->first();
+        $this->assertNotNull($financeUser);
+        $this->assertEquals('finance', $financeUser->role);
+        $this->assertEquals('fin5678', $financeUser->visible_password);
+        $this->assertTrue($financeUser->isAdmin());
+
+        // 3. Finance Officer can log in and access Admin features (dashboard, employees, users, reports, logs)
+        auth()->logout();
+        $loginResp = $this->post(route('login.submit'), [
+            'login' => 'finance01',
+            'password' => 'fin5678',
+        ]);
+        $loginResp->assertRedirect(route('dashboard'));
+        $this->assertAuthenticatedAs($financeUser);
+        $this->assertNotNull($financeUser->fresh()->last_login_at);
+
+        $this->actingAs($financeUser)->get(route('dashboard'))->assertStatus(200);
+        $this->actingAs($financeUser)->get(route('employees.index'))->assertStatus(200);
+        $this->actingAs($financeUser)->get(route('users.index'))->assertStatus(200);
+        $this->actingAs($financeUser)->get(route('activity-logs.index'))->assertStatus(200);
+
+        // 4. Finance Officer edits employee password and then resets it to 1234
+        $updateResp = $this->actingAs($financeUser)->put(route('users.update', $employee), [
+            'name' => 'นางสาวสมหญิง ใจดี',
+            'role' => 'employee',
+            'bank_account' => '8019998887',
+            'new_password' => 'custom9999',
+        ]);
+        $updateResp->assertSessionHas('success');
+        $this->assertEquals('custom9999', $employee->fresh()->visible_password);
+        $this->assertTrue(Hash::check('custom9999', $employee->fresh()->password));
+
+        $resetResp = $this->actingAs($financeUser)->post(route('users.reset-password', $employee));
+        $resetResp->assertSessionHas('success');
+        $this->assertEquals('1234', $employee->fresh()->visible_password);
+        $this->assertTrue(Hash::check('1234', $employee->fresh()->password));
+
+        // 5. Activity Logs page shows recorded actions
+        $logsResp = $this->actingAs($financeUser)->get(route('activity-logs.index'));
+        $logsResp->assertStatus(200);
+        $logsResp->assertSee('นางการเงิน ชำนาญงาน');
+        $logsResp->assertSee('เพิ่มผู้ใช้งาน');
+        $logsResp->assertSee('รีเซ็ตรหัสผ่าน');
+        $logsResp->assertSee('เข้าสู่ระบบ');
+    }
 }

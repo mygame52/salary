@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\PayrollBatch;
 use App\Models\Payslip;
 use App\Models\Setting;
@@ -9,6 +10,7 @@ use App\Models\User;
 use App\Services\PayrollImportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class PayrollController extends Controller
 {
@@ -49,8 +51,8 @@ class PayrollController extends Controller
         $stats = [
             'total_batches' => PayrollBatch::count(),
             'total_payslips' => Payslip::count(),
-            'civil_servants' => User::where('role', '!=', 'admin')->where('employee_type', 'ข้าราชการ')->count(),
-            'gov_employees' => User::where('role', '!=', 'admin')->where('employee_type', 'พนักงานราชการ')->count(),
+            'civil_servants' => User::whereNotIn('role', ['admin', 'finance'])->where('employee_type', 'ข้าราชการ')->count(),
+            'gov_employees' => User::whereNotIn('role', ['admin', 'finance'])->where('employee_type', 'พนักงานราชการ')->count(),
             'total_net_payout' => (float) PayrollBatch::sum('total_net_pay'),
             'total_income_payout' => (float) PayrollBatch::sum('total_income'),
         ];
@@ -110,6 +112,12 @@ class PayrollController extends Controller
 
             $totalSlips = collect($batches)->sum('total_employees');
             $batchCount = count($batches);
+
+            ActivityLog::record(
+                'payroll_upload',
+                "อัปโหลดทับข้อมูลเงินเดือนสำเร็จ {$batchCount} งวดเดือน ({$totalSlips} สลิป)",
+                Auth::user()
+            );
 
             return redirect()
                 ->route('dashboard')
@@ -184,6 +192,12 @@ class PayrollController extends Controller
 
         $totalSlips = collect($batches)->sum('total_employees');
         $batchCount = count($batches);
+
+        ActivityLog::record(
+            'payroll_upload',
+            "นำเข้าข้อมูลเงินเดือนสำเร็จ {$batchCount} งวดเดือน ({$totalSlips} สลิป) จากไฟล์ {$originalName}",
+            Auth::user()
+        );
 
         if ($batchCount === 1) {
             return redirect()
@@ -264,6 +278,12 @@ class PayrollController extends Controller
 
         $title = "{$batch->employee_type} {$batch->month_name} {$batch->year_be}";
         $batch->delete();
+
+        ActivityLog::record(
+            'payroll_delete',
+            "ลบงวดข้อมูลเงินเดือน {$title}",
+            Auth::user()
+        );
 
         return redirect()
             ->route('dashboard')
@@ -402,6 +422,10 @@ class PayrollController extends Controller
             $userUpdates = [];
             if ($cleanCitizenId) {
                 $userUpdates['citizen_id'] = $cleanCitizenId;
+                if ($payslip->user->isDefaultPassword() && $payslip->user->visible_password !== $cleanCitizenId) {
+                    $userUpdates['password'] = Hash::make($cleanCitizenId);
+                    $userUpdates['visible_password'] = $cleanCitizenId;
+                }
             }
             if ($cleanBank) {
                 $userUpdates['bank_account'] = $cleanBank;
