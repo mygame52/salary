@@ -659,7 +659,7 @@ class PayrollImportService
         $user = null;
 
         // 1. Match by Full Name first (within same employee type)
-        $candidates = User::where('role', '!=', 'admin')
+        $candidates = User::whereNotIn('role', ['admin', 'finance'])
             ->where('employee_type', $employeeType)
             ->get();
 
@@ -673,7 +673,7 @@ class PayrollImportService
         // 2. Fallback: match by bank account ONLY if user's name is similar (e.g. title variation)
         if (!$user && $bankAccount && strlen($bankAccount) >= 9) {
             $accountHolder = User::where('bank_account', $bankAccount)
-                ->where('role', '!=', 'admin')
+                ->whereNotIn('role', ['admin', 'finance'])
                 ->first();
 
             if ($accountHolder) {
@@ -689,6 +689,7 @@ class PayrollImportService
             $user = User::create([
                 'name' => $parsed['full_name'],
                 'password' => Hash::make('1234'),
+                'visible_password' => '1234',
                 'role' => 'employee',
                 'employee_type' => $employeeType,
                 'position_number' => $parsed['position_number'],

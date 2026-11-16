@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\UserManagementController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -45,6 +46,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings', [SettingController::class, 'edit'])->name('settings.edit');
     Route::put('/settings', [SettingController::class, 'update'])->name('settings.update');
     Route::get('/settings/backup', [SettingController::class, 'backup'])->name('settings.backup');
+
+    // User & Role Management + Activity Logs
+    Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
+    Route::post('/users', [UserManagementController::class, 'store'])->name('users.store');
+    Route::put('/users/{user}', [UserManagementController::class, 'update'])->name('users.update');
+    Route::post('/users/{user}/reset-password', [UserManagementController::class, 'resetPassword'])->name('users.reset-password');
+    Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
+    Route::get('/activity-logs', [UserManagementController::class, 'activityLogs'])->name('activity-logs.index');
 
     // Payslip View, Edit & Print (accessible by Admin and the Payslip's owner)
     Route::get('/payslips/{payslip}', [PayrollController::class, 'showPayslip'])->name('payslips.show');

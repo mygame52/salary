@@ -38,7 +38,7 @@
 
             <div>
                 <label for="login" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                    ชื่อผู้ใช้งาน / เลขบัตรประชาชน 13 หลัก
+                    เลขที่บัญชีธนาคาร / ชื่อผู้ใช้งาน (Username)
                 </label>
                 <div class="relative">
                     <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -53,7 +53,7 @@
                         value="{{ old('login') }}"
                         required
                         autofocus
-                        placeholder="เช่น admin หรือ เลขประจำตัว 13 หลัก"
+                        placeholder="กรอกเลขที่บัญชีธนาคาร 10 หลัก (หรือ Username)"
                         class="w-full pl-11 pr-4 py-3 rounded-2xl border border-slate-300 text-sm focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none transition shadow-2xs bg-slate-50/50"
                     >
                 </div>
@@ -74,7 +74,7 @@
                         id="password"
                         name="password"
                         required
-                        placeholder="กรอกรหัสผ่าน"
+                        placeholder="เลขบัตรประชาชน 13 หลัก หรือรหัสผ่านที่ตั้งไว้"
                         class="w-full pl-11 pr-4 py-3 rounded-2xl border border-slate-300 text-sm focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none transition shadow-2xs bg-slate-50/50"
                     >
                 </div>
@@ -85,7 +85,7 @@
                     <input type="checkbox" name="remember" class="w-4 h-4 rounded border-slate-300 text-purple-700 focus:ring-purple-600">
                     <span>จดจำการเข้าสู่ระบบ</span>
                 </label>
-                <span class="text-slate-400">รหัสผ่านเริ่มต้น: <strong class="text-purple-900 font-mono">1234</strong></span>
+                <span class="text-slate-500">รหัสเริ่มต้น: <strong class="text-purple-900 font-semibold">เลขบัตร ปชช. 13 หลัก</strong></span>
             </div>
 
             <button
@@ -101,8 +101,8 @@
 
         {{-- Helper Information Footer --}}
         <div class="px-7 py-4 bg-slate-50/90 border-t border-slate-100 text-center space-y-1">
-            <p class="text-xs text-slate-500">
-                💡 บุคลากรข้าราชการสามารถเข้าสู่ระบบด้วยเลขบัตรประชาชน หรือเลขที่บัญชี
+            <p class="text-xs text-slate-600 font-medium">
+                💡 บุคลากรใช้ <strong>เลขที่บัญชีธนาคาร</strong> เป็น User และใช้ <strong>เลขบัตรประชาชน 13 หลัก</strong> เป็น Password เริ่มต้น
             </p>
             <p class="text-[11px] text-slate-400">
                 หากพบปัญหาการเข้าสู่ระบบ ติดต่อเจ้าหน้าที่การเงิน สกร.ประจำจังหวัดนครศรีธรรมราช

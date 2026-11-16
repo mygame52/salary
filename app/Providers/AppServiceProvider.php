@@ -37,12 +37,12 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer('*', function ($view) {
             if (Auth::check() && Auth::user()->isAdmin()) {
-                $missingCitizenIdCount = User::where('role', '!=', 'admin')
+                $missingCitizenIdCount = User::whereNotIn('role', ['admin', 'finance'])
                     ->where(function ($q) {
                         $q->whereNull('citizen_id')->orWhere('citizen_id', '');
                     })->count();
 
-                $missingBankCount = User::where('role', '!=', 'admin')
+                $missingBankCount = User::whereNotIn('role', ['admin', 'finance'])
                     ->where(function ($q) {
                         $q->whereNull('bank_account')->orWhere('bank_account', '');
                     })->count();
@@ -64,7 +64,7 @@ class AppServiceProvider extends ServiceProvider
 
                     $recentUserIds = array_unique(array_merge($currentMonthUserIds, $prevMonthUserIds));
 
-                    $needsStatusReviewCount = User::where('role', '!=', 'admin')
+                    $needsStatusReviewCount = User::whereNotIn('role', ['admin', 'finance'])
                         ->whereNotIn('id', $recentUserIds)
                         ->where('status', 'ปกติ')
                         ->count();
@@ -75,16 +75,19 @@ class AppServiceProvider extends ServiceProvider
                 if ($missingBankCount > 0) $alertCount++;
                 if ($needsStatusReviewCount > 0) $alertCount++;
 
-                $civilCount = User::where('role', '!=', 'admin')->where('employee_type', 'ข้าราชการ')->count();
-                $permCount = User::where('role', '!=', 'admin')->where('employee_type', 'ลูกจ้างประจำ')->count();
-                $govCount = User::where('role', '!=', 'admin')->where('employee_type', 'พนักงานราชการ')->count();
-                $totalEmployeesCount = User::where('role', '!=', 'admin')->count();
+                $civilCount = User::whereNotIn('role', ['admin', 'finance'])->where('employee_type', 'ข้าราชการ')->count();
+                $permCount = User::whereNotIn('role', ['admin', 'finance'])->where('employee_type', 'ลูกจ้างประจำ')->count();
+                $govCount = User::whereNotIn('role', ['admin', 'finance'])->where('employee_type', 'พนักงานราชการ')->count();
+                $totalEmployeesCount = User::whereNotIn('role', ['admin', 'finance'])->count();
 
-                $statusNormalCount = User::where('role', '!=', 'admin')->where('status', 'ปกติ')->count();
-                $statusTransferredCount = User::where('role', '!=', 'admin')->where('status', 'ย้าย')->count();
-                $statusRetiredCount = User::where('role', '!=', 'admin')->where('status', 'เกษียณ')->count();
-                $statusResignedCount = User::where('role', '!=', 'admin')->where('status', 'ลาออก')->count();
-                $statusDeceasedCount = User::where('role', '!=', 'admin')->where('status', 'เสียชีวิต')->count();
+                $statusNormalCount = User::whereNotIn('role', ['admin', 'finance'])->where('status', 'ปกติ')->count();
+                $statusTransferredCount = User::whereNotIn('role', ['admin', 'finance'])->where('status', 'ย้าย')->count();
+                $statusRetiredCount = User::whereNotIn('role', ['admin', 'finance'])->where('status', 'เกษียณ')->count();
+                $statusResignedCount = User::whereNotIn('role', ['admin', 'finance'])->where('status', 'ลาออก')->count();
+                $statusDeceasedCount = User::whereNotIn('role', ['admin', 'finance'])->where('status', 'เสียชีวิต')->count();
+
+                $totalUsersAll = User::count();
+                $totalStaffAdmins = User::whereIn('role', ['admin', 'finance'])->count();
 
                 $view->with('systemNotifications', [
                     'missing_citizen_id' => $missingCitizenIdCount,
@@ -97,6 +100,8 @@ class AppServiceProvider extends ServiceProvider
                     'count_permanent' => $permCount,
                     'count_gov' => $govCount,
                     'count_total_employees' => $totalEmployeesCount,
+                    'count_users_all' => $totalUsersAll,
+                    'count_staff_admins' => $totalStaffAdmins,
                     'status_normal' => $statusNormalCount,
                     'status_transferred' => $statusTransferredCount,
                     'status_retired' => $statusRetiredCount,

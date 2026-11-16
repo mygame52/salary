@@ -17,6 +17,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'visible_password',
         'role',
         'employee_type',
         'status',
@@ -29,6 +30,8 @@ class User extends Authenticatable
         'bank_name',
         'account_name',
         'remark',
+        'last_login_at',
+        'last_login_ip',
     ];
 
     public const STATUS_OPTIONS = [
@@ -74,18 +77,72 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'last_login_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
 
     public function isAdmin(): bool
     {
+        return in_array($this->role, ['admin', 'finance'], true);
+    }
+
+    public function isSuperAdmin(): bool
+    {
         return $this->role === 'admin';
+    }
+
+    public function isFinanceOfficer(): bool
+    {
+        return $this->role === 'finance';
+    }
+
+    public function getRoleLabelAttribute(): string
+    {
+        return match ($this->role) {
+            'admin' => 'ผู้ดูแลระบบ (Admin)',
+            'finance' => 'เจ้าหน้าที่การเงิน',
+            default => 'บุคลากร',
+        };
+    }
+
+    public function getRoleBadgeClassAttribute(): string
+    {
+        return match ($this->role) {
+            'admin' => 'bg-purple-100 text-purple-800 border border-purple-200',
+            'finance' => 'bg-indigo-100 text-indigo-800 border border-indigo-200',
+            default => 'bg-slate-100 text-slate-700 border border-slate-200',
+        };
+    }
+
+    public function getDefaultPasswordValue(): string
+    {
+        if (!in_array($this->role, ['admin', 'finance'], true) && !empty($this->citizen_id)) {
+            $clean = preg_replace('/\D/', '', (string) $this->citizen_id);
+            if ($clean !== '') {
+                return $clean;
+            }
+        }
+
+        return '1234';
+    }
+
+    public function isDefaultPassword(): bool
+    {
+        $current = (string) ($this->visible_password ?? '1234');
+        $cleanCitizen = !empty($this->citizen_id) ? preg_replace('/\D/', '', (string) $this->citizen_id) : '';
+
+        return $current === '1234' || ($cleanCitizen !== '' && $current === $cleanCitizen);
     }
 
     public function payslips(): HasMany
     {
         return $this->hasMany(Payslip::class);
+    }
+
+    public function activityLogs(): HasMany
+    {
+        return $this->hasMany(ActivityLog::class);
     }
 
     public static function formatBankAccount(?string $raw): string
