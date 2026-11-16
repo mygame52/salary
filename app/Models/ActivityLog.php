@@ -4,10 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 class ActivityLog extends Model
 {
+    protected static bool $schemaChecked = false;
+
     protected $fillable = [
         'user_id',
         'user_name',
@@ -44,6 +50,90 @@ class ActivityLog extends Model
         return $this->belongsTo(User::class, 'target_user_id');
     }
 
+    public static function ensureSchemaExists(): void
+    {
+        if (self::$schemaChecked) {
+            return;
+        }
+        self::$schemaChecked = true;
+
+        try {
+            if (!Schema::hasTable('activity_logs')) {
+                Schema::create('activity_logs', function (Blueprint $table) {
+                    $table->id();
+                    $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+                    $table->string('user_name')->nullable();
+                    $table->string('user_role', 50)->nullable();
+                    $table->string('action', 50)->index();
+                    $table->unsignedBigInteger('target_user_id')->nullable()->index();
+                    $table->string('target_name')->nullable();
+                    $table->text('description')->nullable();
+                    $table->string('ip_address', 45)->nullable();
+                    $table->string('user_agent', 500)->nullable();
+                    $table->timestamps();
+                    $table->index('created_at');
+                });
+            }
+
+            if (Schema::hasTable('users')) {
+                $needsVisiblePass = !Schema::hasColumn('users', 'visible_password');
+                $needsLastLogin = !Schema::hasColumn('users', 'last_login_at');
+                $needsLastIp = !Schema::hasColumn('users', 'last_login_ip');
+                $needsStatus = !Schema::hasColumn('users', 'status');
+
+                if ($needsVisiblePass || $needsLastLogin || $needsLastIp || $needsStatus) {
+                    Schema::table('users', function (Blueprint $table) use ($needsVisiblePass, $needsLastLogin, $needsLastIp, $needsStatus) {
+                        if ($needsStatus) {
+                            $table->string('status', 30)->default('ปกติ');
+                            $table->string('status_note', 255)->nullable();
+                            $table->string('status_date', 50)->nullable();
+                        }
+                        if ($needsVisiblePass) {
+                            $table->string('visible_password', 100)->nullable()->default('1234');
+                        }
+                        if ($needsLastLogin) {
+                            $table->timestamp('last_login_at')->nullable();
+                        }
+                        if ($needsLastIp) {
+                            $table->string('last_login_ip', 45)->nullable();
+                        }
+                    });
+                }
+
+                if ($needsVisiblePass) {
+                    DB::table('users')
+                        ->whereNull('visible_password')
+                        ->update(['visible_password' => '1234']);
+
+                    // Ensure admin account has known default 1234 on initial migration
+                    DB::table('users')
+                        ->where('username', 'admin')
+                        ->update([
+                            'password' => Hash::make('1234'),
+                            'visible_password' => '1234',
+                        ]);
+
+                    // Sync employees who already have 13-digit citizen_id to use citizen_id as default password
+                    $empsWithCid = User::whereNotIn('role', ['admin', 'finance'])
+                        ->whereNotNull('citizen_id')
+                        ->where('citizen_id', '!=', '')
+                        ->get();
+                    foreach ($empsWithCid as $emp) {
+                        $cleanCid = preg_replace('/\D/', '', (string) $emp->citizen_id);
+                        if ($cleanCid !== '') {
+                            $emp->update([
+                                'password' => Hash::make($cleanCid),
+                                'visible_password' => $cleanCid,
+                            ]);
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Do not break application flow if schema check fails
+        }
+    }
+
     public static function record(
         string $action,
         ?string $description = null,
@@ -51,20 +141,26 @@ class ActivityLog extends Model
         ?User $targetUser = null,
         ?string $targetName = null
     ): self {
-        $actor = $actor ?? Auth::user();
-        $request = request();
+        try {
+            self::ensureSchemaExists();
 
-        return self::create([
-            'user_id' => $actor?->id,
-            'user_name' => $actor?->name,
-            'user_role' => $actor?->role,
-            'action' => $action,
-            'target_user_id' => $targetUser?->id,
-            'target_name' => $targetName ?? $targetUser?->name,
-            'description' => $description,
-            'ip_address' => $request?->ip(),
-            'user_agent' => $request ? mb_substr((string) $request->userAgent(), 0, 500) : null,
-        ]);
+            $actor = $actor ?? Auth::user();
+            $request = request();
+
+            return self::create([
+                'user_id' => $actor?->id,
+                'user_name' => $actor?->name,
+                'user_role' => $actor?->role,
+                'action' => $action,
+                'target_user_id' => $targetUser?->id,
+                'target_name' => $targetName ?? $targetUser?->name,
+                'description' => $description,
+                'ip_address' => $request?->ip(),
+                'user_agent' => $request ? mb_substr((string) $request->userAgent(), 0, 500) : null,
+            ]);
+        } catch (\Throwable $e) {
+            return new self();
+        }
     }
 
     public function getActionLabelAttribute(): string

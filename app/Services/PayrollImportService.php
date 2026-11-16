@@ -26,6 +26,8 @@ class PayrollImportService
         'ธันวาคม' => 12,
     ];
 
+    protected static ?string $cachedDefaultHash = null;
+
     /**
      * Import from an uploaded file path (.xlsx, .xls, .csv)
      *
@@ -688,7 +690,7 @@ class PayrollImportService
         if (!$user) {
             $user = User::create([
                 'name' => $parsed['full_name'],
-                'password' => Hash::make('1234'),
+                'password' => self::$cachedDefaultHash ??= Hash::make('1234'),
                 'visible_password' => '1234',
                 'role' => 'employee',
                 'employee_type' => $employeeType,

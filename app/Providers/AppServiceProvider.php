@@ -35,6 +35,33 @@ class AppServiceProvider extends ServiceProvider
             return url(request()->path());
         });
 
+        \App\Models\ActivityLog::ensureSchemaExists();
+
+        // Auto-import gov_teachers_2569.csv once on the host database if not yet imported
+        if (!app()->runningUnitTests()) {
+            try {
+                if (\Illuminate\Support\Facades\Schema::hasTable('payroll_batches')
+                    && PayrollBatch::where('employee_type', 'พนักงานราชการ')->count() === 0
+                    && file_exists(storage_path('app/seed_data/gov_teachers_2569.csv'))
+                ) {
+                    @set_time_limit(300);
+                    $admin = User::where('role', 'admin')->first();
+                    app(\App\Services\PayrollImportService::class)->importFile(
+                        storage_path('app/seed_data/gov_teachers_2569.csv'),
+                        'พนักงานราชการ',
+                        9,
+                        2569,
+                        null,
+                        null,
+                        'gov_teachers_2569.csv',
+                        $admin ? $admin->id : 1
+                    );
+                }
+            } catch (\Throwable $e) {
+                // Ignore auto-seed errors
+            }
+        }
+
         View::composer('*', function ($view) {
             if (Auth::check() && Auth::user()->isAdmin()) {
                 $missingCitizenIdCount = User::whereNotIn('role', ['admin', 'finance'])

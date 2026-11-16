@@ -23,6 +23,8 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+        ActivityLog::ensureSchemaExists();
+
         $data = $request->validate([
             'login' => ['required', 'string'],
             'password' => ['required', 'string'],
@@ -79,10 +81,14 @@ class AuthController extends Controller
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 
-        $user->update([
-            'last_login_at' => now(),
-            'last_login_ip' => $request->ip(),
-        ]);
+        try {
+            $user->update([
+                'last_login_at' => now(),
+                'last_login_ip' => $request->ip(),
+            ]);
+        } catch (\Throwable $e) {
+            // Ignore if columns are being migrated
+        }
 
         ActivityLog::record(
             'login',
